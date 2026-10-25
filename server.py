@@ -33,6 +33,8 @@ CONFIG_PATH = os.path.join(ROOT, "config.json")
 
 _lock = threading.Lock()
 _cache: dict = {"payload": None, "at": 0.0}
+DEMO = False
+DEMO_SCENARIO = "ok"
 
 
 def load_config() -> dict:
@@ -50,6 +52,8 @@ def load_secrets(config: dict) -> dict[str, str]:
 
 
 def get_payload(force: bool = False) -> dict:
+    if DEMO:
+        return providers.demo_collect(DEMO_SCENARIO)
     config = load_config()
     ttl = float(config.get("cache_seconds", 25))
     with _lock:
@@ -126,11 +130,23 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Дашборд лимитов подключений")
     parser.add_argument("--port", type=int, default=int(os.environ.get("DASHBOARD_PORT", 8787)))
     parser.add_argument("--host", default=os.environ.get("DASHBOARD_HOST", "127.0.0.1"))
+    parser.add_argument(
+        "--demo",
+        nargs="?",
+        const="ok",
+        choices=["ok", "problems"],
+        help="показать вымышленные данные вместо реальных (ok | problems)",
+    )
     args = parser.parse_args()
+
+    global DEMO, DEMO_SCENARIO
+    DEMO = args.demo is not None
+    DEMO_SCENARIO = args.demo or "ok"
 
     httpd = ThreadingHTTPServer((args.host, args.port), Handler)
     httpd.daemon_threads = True
-    print(f"Дашборд: http://{args.host}:{args.port}  (Ctrl+C — остановить)", flush=True)
+    suffix = f"  [демо: {DEMO_SCENARIO}]" if DEMO else ""
+    print(f"Дашборд: http://{args.host}:{args.port}{suffix}  (Ctrl+C — остановить)", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

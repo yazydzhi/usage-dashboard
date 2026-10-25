@@ -57,6 +57,7 @@
   }
   .strip b { font-variant-numeric: tabular-nums; font-size: 15px; }
   .strip .lbl { color: var(--muted); }
+  .demo-chip { color: #e3b341; border-color: rgba(210,153,34,.45); background: rgba(210,153,34,.10); }
   .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 rgba(63,185,80,.5); animation: pulse 2.4s infinite; }
   .pulse.stale { background: var(--dim); animation: none; }
   @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(63,185,80,.45); } 70% { box-shadow: 0 0 0 7px rgba(63,185,80,0); } 100% { box-shadow: 0 0 0 0 rgba(63,185,80,0); } }
@@ -159,6 +160,7 @@
     <span><span class="lbl">Подключений:</span> <b id="count">0</b></span>
     <span><span class="lbl">Требуют внимания:</span> <b id="problems">0</b></span>
     <span class="spacer"></span>
+    <span class="chip demo-chip" id="demo-chip" hidden>демо-данные</span>
     <span class="lbl" id="next-refresh"></span>
   </div>
 
@@ -390,7 +392,10 @@ function render(data) {
   elUpdated.textContent = fmtTime(data.generated_at) || "—";
   elPulse.classList.toggle("stale", Boolean(data.cached));
   const ok = cards.filter((c) => c.status === "ok").length;
-  elSub.textContent = `${ok} из ${cards.length} в норме · источник: локальный шлюз API`;
+  elSub.textContent = data.demo
+    ? `демо-режим: вымышленные данные · ${ok} из ${cards.length} в норме`
+    : `${ok} из ${cards.length} в норме · источник: локальный шлюз API`;
+  document.getElementById("demo-chip").hidden = !data.demo;
 }
 
 async function load(force) {

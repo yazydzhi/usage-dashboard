@@ -9,6 +9,15 @@ only receives numbers and error texts.
 
 The UI is in Russian; the code and this README are in English.
 
+![Dashboard overview](assets/overview.jpg)
+
+*`python3 server.py --demo` — all numbers and account names above are fictional.*
+
+![Problem states](assets/problem-states.jpg)
+
+*`--demo problems`: an expired key, a nearly exhausted limit, two services without tokens and a
+broken agent login. Each card explains what to fix; the rest of the page keeps working.*
+
 ## Providers
 
 | Provider | Endpoint used | What you see |
@@ -43,6 +52,8 @@ No dependencies — Python 3.9+ standard library only.
 ```
 python3 server.py --port 9000        # another port
 python3 server.py --host 0.0.0.0     # expose to LAN (opt-in)
+python3 server.py --demo             # fictional data, no credentials read
+python3 server.py --demo problems    # fictional data with failing services
 ```
 
 ## Keys

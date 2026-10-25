@@ -34,7 +34,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 HOME = os.path.expanduser("~")
@@ -985,6 +985,194 @@ def fetch_custom(spec: dict, secrets: dict[str, str]) -> dict:
         source=spec["url"],
         links=spec.get("links") or [],
     )
+
+
+# --------------------------------------------------------------------------- #
+#  Демо-режим: вымышленные данные для скриншотов и проверки вёрстки
+# --------------------------------------------------------------------------- #
+
+
+def _demo_window(label: str, percent: float, days: float | None = None, detail: str | None = None) -> dict:
+    reset = None
+    if days is not None:
+        reset = (
+            datetime.now(timezone.utc) + timedelta(days=days)
+        ).isoformat(timespec="seconds")
+    return window(label, percent, reset, detail=detail)
+
+
+def demo_collect(scenario: str = "ok") -> dict:
+    """Карточки с придуманными числами: --demo в server.py. Реальных ключей не касается."""
+    ok_cards = [
+        card(
+            "claude",
+            "Claude",
+            "Anthropic · подписка",
+            plan="Pro",
+            windows=[
+                _demo_window("Сессия (5 ч)", 0, 0.1),
+                _demo_window("Неделя", 41, 2.9),
+            ],
+            lines=[
+                "Доп. кредиты отключены",
+                "За неделю: Claude Code 62% · Chats 21% · Cowork 0%",
+            ],
+            source="api.anthropic.com/api/oauth/usage",
+            links=[{"label": "Настройки", "url": "https://claude.ai/settings/usage"}],
+        ),
+        card(
+            "cursor",
+            "Cursor",
+            "Anysphere · подписка",
+            plan="Pro",
+            windows=[
+                _demo_window("Включённый лимит", 78, 5),
+                _demo_window("API-модели", 64, 5),
+                _demo_window("Auto-модели", 71, 5),
+            ],
+            lines=[
+                "Потрачено $15.60 · включено $20.00 · бонус $0.00",
+                "Цикл: 30.09 – 30.10",
+            ],
+            source="api2.cursor.sh GetCurrentPeriodUsage",
+            links=[{"label": "Аккаунт", "url": "https://cursor.com/settings"}],
+        ),
+        card(
+            "openrouter",
+            "OpenRouter",
+            "агрегатор моделей · предоплата",
+            balance={"amount": 18.42, "currency": "USD"},
+            lines=["Пополнено $50.00 · израсходовано $31.58", "Расход ключа за месяц: $4.20"],
+            source="openrouter.ai/api/v1/credits",
+            links=[{"label": "Кредиты", "url": "https://openrouter.ai/settings/credits"}],
+        ),
+        card(
+            "codex",
+            "ChatGPT / Codex",
+            "OpenAI · подписка",
+            plan="Plus",
+            windows=[_demo_window("Неделя", 24, 3.4)],
+            lines=["demo@example.com"],
+            source="chatgpt.com/backend-api/wham/usage",
+            links=[{"label": "Тариф", "url": "https://chatgpt.com/#pricing"}],
+        ),
+        card(
+            "copilot",
+            "GitHub Copilot",
+            "GitHub · подписка",
+            plan="Individual",
+            windows=[
+                _demo_window("Chat", 15),
+                _demo_window("Автодополнение", 32, detail="осталось 1360 из 2000"),
+            ],
+            lines=["Аккаунт: octocat", "Premium-запросы: не входят в тариф"],
+            source="gh api /copilot_internal/user",
+            links=[{"label": "Copilot", "url": "https://github.com/settings/copilot"}],
+        ),
+        card(
+            "opencode",
+            "OpenCode Zen",
+            "opencode.ai · подписка",
+            windows=[
+                _demo_window("Скользящее окно", 45, 0.2),
+                _demo_window("Неделя", 30, 4.1),
+                _demo_window("Месяц", 22, 18),
+            ],
+            source="opencode.ai/zen/go/v1/usage",
+            links=[{"label": "Консоль", "url": "https://opencode.ai/auth"}],
+        ),
+        card(
+            "apify",
+            "Apify",
+            "скрейпинг · предоплата",
+            plan="Starter",
+            balance={"amount": 36.60, "currency": "USD"},
+            windows=[
+                _demo_window("Месяц", 25, 12, detail="$12.40 из $49.00"),
+            ],
+            lines=["Аккаунт: demo"],
+            source="api.apify.com/v2/users/me",
+            links=[{"label": "Billing", "url": "https://console.apify.com/billing"}],
+        ),
+        card(
+            "spicy",
+            "SpicyAPI",
+            "image/video/chat API · предоплата",
+            balance={"amount": 7.85, "currency": "USD"},
+            lines=["Израсходовано за месяц: $12.15"],
+            source="api.spicyapi.ai/api/v1/usage",
+            links=[{"label": "Биллинг", "url": "https://spicyapi.ai/console/billing"}],
+        ),
+        card(
+            "hermes",
+            "Hermes Agent",
+            "локальный агент",
+            plan="активен: openrouter",
+            lines=[
+                "✓ openrouter: авторизован",
+                "openrouter: OPENROUTER_API_KEY — ok (запросов: 42)",
+                "copilot: gh auth token — ok (запросов: 7)",
+            ],
+            source="~/.hermes/auth.json",
+            links=[{"label": "Портал Nous", "url": "https://portal.nousresearch.com/billing"}],
+        ),
+    ]
+
+    if scenario != "problems":
+        return {"generated_at": now_iso(), "problems": 0, "cards": ok_cards, "demo": True}
+
+    problem_cards = [
+        ok_cards[0],
+        card(
+            "cursor",
+            "Cursor",
+            "Anysphere · подписка",
+            "warn",
+            plan="Pro",
+            windows=[
+                _demo_window("Включённый лимит", 97, 2),
+                _demo_window("API-модели", 91, 2),
+            ],
+            lines=["Потрачено $19.40 · включено $20.00"],
+            source="api2.cursor.sh GetCurrentPeriodUsage",
+        ),
+        ok_cards[2],
+        card(
+            "opencode",
+            "OpenCode Zen",
+            "opencode.ai · подписка",
+            "error",
+            error="Ключ истёк или отозван — выпусти новый в консоли сервиса и обнови secrets.env.",
+            source="opencode.ai/zen/go/v1/usage",
+            links=[{"label": "Ключи", "url": "https://opencode.ai/auth"}],
+        ),
+        unconfigured(
+            "apify",
+            "Apify",
+            "скрейпинг · предоплата",
+            "Нет APIFY_TOKEN — добавь его в secrets.env (console.apify.com → Settings → API tokens).",
+        ),
+        unconfigured(
+            "spicy",
+            "SpicyAPI",
+            "image/video/chat API · предоплата",
+            "Нет SPICY_API_KEY — добавь в secrets.env ключ sk-spicy-… (spicyapi.ai → Console → API keys).",
+        ),
+        card(
+            "hermes",
+            "Hermes Agent",
+            "локальный агент",
+            "error",
+            plan="активен: nous",
+            lines=[
+                "⚠ nous: требуется повторный вход (Invalid refresh token)",
+                "openrouter: OPENROUTER_API_KEY — проблема с биллингом (запросов: 1)",
+            ],
+            source="~/.hermes/auth.json",
+        ),
+    ]
+    problems = sum(1 for item in problem_cards if item.get("status") in ("error", "warn", "unconfigured"))
+    return {"generated_at": now_iso(), "problems": problems, "cards": problem_cards, "demo": True}
 
 
 # --------------------------------------------------------------------------- #
