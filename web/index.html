@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Лимиты подключений</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2230;
+    --border: #262d3a;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --dim: #6e7681;
+    --ok: #3fb950;
+    --warn: #d29922;
+    --error: #f85149;
+    --idle: #4b5563;
+    --accent: #58a6ff;
+    --bar-bg: #21262d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 20% -10%, #16202e 0%, var(--bg) 55%) fixed;
+    color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 28px 22px 60px; }
+
+  header.top {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 14px 18px;
+    margin-bottom: 22px;
+  }
+  h1 { font-size: 21px; margin: 0; font-weight: 650; letter-spacing: -0.2px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .spacer { flex: 1 1 auto; }
+  .toolbar { display: flex; align-items: center; gap: 10px; }
+  button {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  button:hover { border-color: #3b4657; background: #222a38; }
+  button.primary { border-color: #2f5f9c; background: #14304f; }
+  button.primary:hover { background: #17395e; }
+  button[disabled] { opacity: .55; cursor: progress; }
+  .toggle { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; user-select: none; cursor: pointer; }
+  .toggle input { accent-color: var(--accent); }
+
+  .strip {
+    display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: center;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 16px; margin-bottom: 20px; font-size: 13px;
+  }
+  .strip b { font-variant-numeric: tabular-nums; font-size: 15px; }
+  .strip .lbl { color: var(--muted); }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 rgba(63,185,80,.5); animation: pulse 2.4s infinite; }
+  .pulse.stale { background: var(--dim); animation: none; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(63,185,80,.45); } 70% { box-shadow: 0 0 0 7px rgba(63,185,80,0); } 100% { box-shadow: 0 0 0 0 rgba(63,185,80,0); } }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(322px, 1fr)); gap: 16px;
+  }
+
+  .card {
+    background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 42%);
+    border: 1px solid var(--border); border-radius: 14px; padding: 16px 16px 12px;
+    display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden;
+  }
+  .card::before {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 2px;
+    background: var(--accent); opacity: 0;
+  }
+  .card[data-status="error"]::before { background: var(--error); opacity: 1; }
+  .card[data-status="warn"]::before { background: var(--warn); opacity: 1; }
+  .card[data-status="unconfigured"]::before { background: var(--idle); opacity: 1; }
+  .card[data-status="ok"]::before { background: var(--ok); opacity: .55; }
+
+  .card-head { display: flex; align-items: flex-start; gap: 10px; }
+  .badge-avatar {
+    width: 30px; height: 30px; flex: 0 0 30px; border-radius: 9px;
+    display: grid; place-items: center; font-weight: 700; font-size: 14px;
+    background: #23303f; color: #cbd5e1; border: 1px solid #2c3a4c;
+  }
+  .titles { min-width: 0; flex: 1; }
+  .card-title { font-weight: 620; font-size: 15px; letter-spacing: -0.1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-sub { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chip {
+    font-size: 11px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border);
+    color: var(--muted); background: #131922; white-space: nowrap;
+  }
+  .chip.plan { color: #cdd9e5; border-color: #2f3c4d; }
+
+  .metric { display: flex; align-items: baseline; gap: 8px; }
+  .metric .big { font-size: 27px; font-weight: 660; letter-spacing: -0.6px; font-variant-numeric: tabular-nums; }
+  .metric .unit { color: var(--muted); font-size: 13px; }
+  .metric .pct { font-size: 27px; font-weight: 660; font-variant-numeric: tabular-nums; }
+  .metric .cap { color: var(--dim); font-size: 12px; margin-left: auto; }
+
+  .bars { display: flex; flex-direction: column; gap: 10px; }
+  .bar-row { display: flex; flex-direction: column; gap: 4px; }
+  .bar-top { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+  .bar-top .v { color: var(--text); font-variant-numeric: tabular-nums; }
+  .bar { height: 6px; border-radius: 999px; background: var(--bar-bg); overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 999px; background: var(--ok); transition: width .5s ease; }
+  .bar.warn > i { background: var(--warn); }
+  .bar.error > i { background: var(--error); }
+  .bar-reset { font-size: 11px; color: var(--dim); }
+
+  .lines { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+  .lines .warnline { color: #e3b341; }
+
+  .card-error {
+    font-size: 12px; color: #ffb4ae; background: rgba(248,81,73,.08);
+    border: 1px solid rgba(248,81,73,.28); border-radius: 8px; padding: 8px 10px;
+    word-break: break-word;
+  }
+  .card-error.idle { color: #b6bec9; background: rgba(110,118,129,.08); border-color: rgba(110,118,129,.28); }
+
+  .card-foot {
+    margin-top: auto; padding-top: 10px; border-top: 1px solid #1f2530;
+    display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--dim);
+  }
+  .card-foot .src { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-foot a { color: #6ea8fe; text-decoration: none; margin-left: auto; white-space: nowrap; }
+  .card-foot a:hover { text-decoration: underline; }
+
+  .skeleton { height: 172px; border-radius: 14px; background: linear-gradient(90deg,#151a22 25%,#1b2230 37%,#151a22 63%); background-size: 400% 100%; animation: shimmer 1.3s ease infinite; }
+  @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+  .banner { margin-top: 18px; color: var(--muted); font-size: 12px; text-align: center; }
+  .banner code { background: #171d26; padding: 1px 5px; border-radius: 5px; color: #b9c2cc; }
+  @media (max-width: 560px) { .wrap { padding: 18px 14px 44px; } .metric .big { font-size: 23px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Лимиты и балансы подключений</h1>
+      <div class="sub" id="subline">загрузка…</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="toolbar">
+      <label class="toggle" title="Опрашивать API раз в 30 секунд">
+        <input type="checkbox" id="auto" checked> автообновление
+      </label>
+      <button class="primary" id="refresh">Обновить</button>
+    </div>
+  </header>
+
+  <div class="strip">
+    <span class="pulse" id="pulse"></span>
+    <span><span class="lbl">Обновлено:</span> <b id="updated">—</b></span>
+    <span><span class="lbl">Суммарный баланс:</span> <b id="total-balance">—</b></span>
+    <span><span class="lbl">Подключений:</span> <b id="count">0</b></span>
+    <span><span class="lbl">Требуют внимания:</span> <b id="problems">0</b></span>
+    <span class="spacer"></span>
+    <span class="lbl" id="next-refresh"></span>
+  </div>
+
+  <div class="grid" id="grid">
+    <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+    <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+  </div>
+
+  <div class="banner">
+    Данные читаются локально: ключи лежат в <code>secrets.env</code>, keychain macOS и конфигах CLI — в браузер они не попадают.
+  </div>
+</div>
+
+<script>
+const REFRESH_MS = 30000;
+const grid = document.getElementById("grid");
+const elSub = document.getElementById("subline");
+const elUpdated = document.getElementById("updated");
+const elTotal = document.getElementById("total-balance");
+const elCount = document.getElementById("count");
+const elProblems = document.getElementById("problems");
+const elNext = document.getElementById("next-refresh");
+const elPulse = document.getElementById("pulse");
+const btn = document.getElementById("refresh");
+const auto = document.getElementById("auto");
+
+let nextAt = 0;
+let inflight = false;
+
+const STATUS_TEXT = { ok: "ок", warn: "внимание", error: "ошибка", unconfigured: "не настроено" };
+
+function avatar(name) {
+  return (name || "?").trim().charAt(0).toUpperCase();
+}
+
+function fmtMoney(amount, currency) {
+  const cur = currency || "USD";
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency", currency: cur, maximumFractionDigits: 2, minimumFractionDigits: 2,
+    }).format(amount);
+  } catch (e) {
+    return `$${Number(amount).toFixed(2)}`;
+  }
+}
+
+function fmtTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function fmtReset(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  const diff = d - new Date();
+  if (diff <= 0) return "сброс прошёл";
+  const mins = Math.round(diff / 60000);
+  const days = Math.floor(mins / 1440);
+  const hours = Math.floor((mins % 1440) / 60);
+  const m = mins % 60;
+  let left;
+  if (days > 0) left = `${days} д ${hours} ч`;
+  else if (hours > 0) left = `${hours} ч ${m} м`;
+  else left = `${m} м`;
+  return `сброс через ${left}`;
+}
+
+function barClass(pct) {
+  if (pct >= 95) return "bar error";
+  if (pct >= 80) return "bar warn";
+  return "bar";
+}
+
+function cardEl(card) {
+  const el = document.createElement("div");
+  el.className = "card";
+  el.dataset.status = card.status || "ok";
+
+  const head = document.createElement("div");
+  head.className = "card-head";
+  const av = document.createElement("div");
+  av.className = "badge-avatar";
+  av.textContent = avatar(card.name);
+  const titles = document.createElement("div");
+  titles.className = "titles";
+  const t = document.createElement("div");
+  t.className = "card-title";
+  t.textContent = card.name || card.id;
+  const s = document.createElement("div");
+  s.className = "card-sub";
+  s.textContent = card.subtitle || "";
+  titles.append(t, s);
+  head.append(av, titles);
+
+  const chips = document.createElement("div");
+  chips.style.display = "flex";
+  chips.style.gap = "6px";
+  chips.style.alignItems = "center";
+  if (card.plan) {
+    const p = document.createElement("span");
+    p.className = "chip plan";
+    p.textContent = card.plan;
+    chips.append(p);
+  }
+  const st = document.createElement("span");
+  st.className = "chip";
+  st.textContent = STATUS_TEXT[card.status] || card.status;
+  st.style.color = card.status === "error" ? "#ff9d97"
+    : card.status === "warn" ? "#e3b341"
+    : card.status === "unconfigured" ? "#9aa4b2" : "#56d364";
+  chips.append(st);
+  head.append(chips);
+  el.append(head);
+
+  // Крупная метрика: баланс, иначе самый загруженный лимит
+  const windows = card.windows || [];
+  const topWindow = windows.slice().sort((a, b) => (b.percent || 0) - (a.percent || 0))[0];
+  const metric = document.createElement("div");
+  metric.className = "metric";
+  if (card.balance && typeof card.balance.amount === "number") {
+    metric.innerHTML = `<span class="big">${fmtMoney(card.balance.amount, card.balance.currency)}</span>
+      <span class="unit">на балансе</span><span class="cap">${topWindow ? "лимит " + Math.round(topWindow.percent) + "%" : ""}</span>`;
+  } else if (topWindow) {
+    metric.innerHTML = `<span class="pct">${Math.round(topWindow.percent)}%</span>
+      <span class="unit">${topWindow.label}</span><span class="cap">использовано</span>`;
+  } else if (card.status === "error") {
+    metric.innerHTML = `<span class="unit">нет данных</span>`;
+  } else {
+    metric.innerHTML = `<span class="unit">—</span>`;
+  }
+  el.append(metric);
+
+  if (windows.length === 1) {
+    const only = windows[0];
+    const metaText = [only.detail, fmtReset(only.resets_at)].filter(Boolean).join(" · ");
+    if (metaText) {
+      const meta = document.createElement("div");
+      meta.className = "bar-reset";
+      meta.textContent = metaText;
+      el.append(meta);
+    }
+  }
+
+  if (windows.length) {
+    const bars = document.createElement("div");
+    bars.className = "bars";
+    // Один лимит уже показан крупной метрикой — полосу не дублируем.
+    const shown = windows.length === 1 ? [] : windows;
+    shown.forEach((w) => {
+      const row = document.createElement("div");
+      row.className = "bar-row";
+      const top = document.createElement("div");
+      top.className = "bar-top";
+      const lbl = document.createElement("span");
+      lbl.textContent = w.label;
+      const val = document.createElement("span");
+      val.className = "v";
+      val.textContent = `${Math.round(w.percent)}%`;
+      top.append(lbl, val);
+      const bar = document.createElement("div");
+      bar.className = barClass(w.percent);
+      const fill = document.createElement("i");
+      fill.style.width = Math.min(100, Math.max(0, w.percent)) + "%";
+      bar.append(fill);
+      row.append(top, bar);
+      if (w.detail || w.resets_at) {
+        const meta = document.createElement("div");
+        meta.className = "bar-reset";
+        meta.textContent = [w.detail, fmtReset(w.resets_at)].filter(Boolean).join(" · ");
+        row.append(meta);
+      }
+      bars.append(row);
+    });
+    el.append(bars);
+  }
+
+  if (card.error) {
+    const err = document.createElement("div");
+    err.className = "card-error" + (card.status === "unconfigured" ? " idle" : "");
+    err.textContent = card.error;
+    el.append(err);
+  }
+
+  if ((card.lines || []).length) {
+    const lines = document.createElement("div");
+    lines.className = "lines";
+    card.lines.forEach((line) => {
+      const d = document.createElement("div");
+      if (String(line).startsWith("⚠")) d.className = "warnline";
+      d.textContent = line;
+      lines.append(d);
+    });
+    el.append(lines);
+  }
+
+  const foot = document.createElement("div");
+  foot.className = "card-foot";
+  const src = document.createElement("span");
+  src.className = "src";
+  src.textContent = card.source || "";
+  src.title = card.source || "";
+  foot.append(src);
+  const link = (card.links || [])[0];
+  if (link) {
+    const a = document.createElement("a");
+    a.href = link.url;
+    a.target = "_blank";
+    a.rel = "noreferrer";
+    a.textContent = link.label + " ↗";
+    foot.append(a);
+  }
+  el.append(foot);
+  return el;
+}
+
+function render(data) {
+  const cards = data.cards || [];
+  grid.replaceChildren(...cards.map(cardEl));
+
+  const total = cards.reduce((sum, c) => sum + (c.balance && c.balance.currency === "USD" ? c.balance.amount : 0), 0);
+  elTotal.textContent = fmtMoney(total, "USD");
+  elCount.textContent = String(cards.length);
+  const problems = cards.filter((c) => c.status === "error" || c.status === "warn" || c.status === "unconfigured").length;
+  elProblems.textContent = String(problems);
+  elProblems.style.color = problems ? "#e3b341" : "#3fb950";
+  elUpdated.textContent = fmtTime(data.generated_at) || "—";
+  elPulse.classList.toggle("stale", Boolean(data.cached));
+  const ok = cards.filter((c) => c.status === "ok").length;
+  elSub.textContent = `${ok} из ${cards.length} в норме · источник: локальный шлюз API`;
+}
+
+async function load(force) {
+  if (inflight) return;
+  inflight = true;
+  btn.disabled = true;
+  const prev = btn.textContent;
+  btn.textContent = "Обновляю…";
+  try {
+    const res = await fetch(`/api/usage${force ? "?force=1" : ""}`, { cache: "no-store" });
+    const data = await res.json();
+    if (data.error && !(data.cards || []).length) throw new Error(data.error);
+    render(data);
+    nextAt = Date.now() + REFRESH_MS;
+  } catch (err) {
+    elPulse.classList.add("stale");
+    elSub.textContent = "не удалось получить данные: " + (err && err.message ? err.message : err);
+  } finally {
+    inflight = false;
+    btn.disabled = false;
+    btn.textContent = prev;
+  }
+}
+
+setInterval(() => {
+  if (!auto.checked) { elNext.textContent = ""; return; }
+  const left = Math.max(0, Math.round((nextAt - Date.now()) / 1000));
+  elNext.textContent = left > 0 ? `следующее обновление через ${left} с` : "";
+  if (left === 0 && nextAt) { nextAt = 0; load(false); }
+}, 1000);
+
+btn.addEventListener("click", () => load(true));
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(false); });
+load(true);
+</script>
+</body>
+</html>

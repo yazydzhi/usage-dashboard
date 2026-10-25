@@ -1,0 +1,16 @@
+{
+  "cache_seconds": 25,
+  "secrets_file": "secrets.env",
+  "providers": {
+    "claude": { "enabled": true },
+    "cursor": { "enabled": true },
+    "openrouter": { "enabled": true },
+    "codex": { "enabled": true },
+    "copilot": { "enabled": true },
+    "opencode": { "enabled": true },
+    "apify": { "enabled": true },
+    "spicy": { "enabled": true },
+    "hermes": { "enabled": true }
+  },
+  "custom": []
+}
