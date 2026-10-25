@@ -115,4 +115,4 @@ web/index.html   the whole page: CSS + JS, no build step
 
 ## License
 
-No license yet — ask the author if you want to reuse it.
+MIT — see [LICENSE](LICENSE).
